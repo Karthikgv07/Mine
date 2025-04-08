@@ -12,7 +12,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from math import sqrt
 
 # Load dataset
-file_path = "Mine/DAM_Market Snapshot.csv"
+file_path = "https://github.com/Karthikgv07/Mine/blob/main/DAM_Market%20Snapshot.csv"
 df = pd.read_csv(file_path)
 
 # Clean column names
