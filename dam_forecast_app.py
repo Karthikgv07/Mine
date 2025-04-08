@@ -12,7 +12,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_percentage_error
 from math import sqrt
 
 # Load dataset
-file_path = "https://github.com/Karthikgv07/Mine/blob/main/DAM_Market%20Snapshot.csv"
+file_path = "https://github.com/Karthikgv07/Mine/blob/main/path/to/DAM_Market Snapshot.csv"
 df = pd.read_csv(file_path)
 
 # Clean column names
@@ -168,7 +168,7 @@ st.set_page_config(layout="wide", page_title="DAM Market Forecast App")
 st.title(" DAM Market Forecasting App (1-Month, 90% CI)")
 
 # File uploader
-uploaded_file = st.file_uploader("https://github.com/Karthikgv07/Mine/blob/main/DAM_Market%20Snapshot.csv", type=["csv"])
+uploaded_file = st.file_uploader("https://github.com/Karthikgv07/Mine/blob/main/path/to/DAM_Market Snapshot.csv", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
