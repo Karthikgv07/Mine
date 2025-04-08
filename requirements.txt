@@ -6,3 +6,16 @@ numpy
 matplotlib
 streamlit
 prophet
+streamlit
+numpy
+pandas
+matplotlib
+seaborn
+statsmodels
+scikit-learn
+scipy
+plotly
+tqdm
+prophet
+holidays
+statsmodels
