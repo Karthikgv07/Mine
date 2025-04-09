@@ -21,8 +21,21 @@ if uploaded_file is not None:
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
     df = df.dropna(subset=['date', 'mcprsmwh'])
 
-    df.set_index('date', inplace=True)
-    df = df.asfreq('D')
+    # --- Clean & Prepare ---
+df.columns = df.columns.str.strip().str.lower().str.replace(r"[^a-zA-Z0-9_]", "", regex=True)
+df['date'] = pd.to_datetime(df['date'], errors='coerce')
+df = df.dropna(subset=['date', 'mcprsmwh'])
+
+# Handle duplicates: average MCP per day
+df = df.groupby('date', as_index=False)['mcprsmwh'].mean()
+
+# Reindex to daily frequency
+df.set_index('date', inplace=True)
+df = df.asfreq('D')
+
+df['mcprsmwh'] = pd.to_numeric(df['mcprsmwh'], errors='coerce')
+df = df.ffill()
+
     df['mcprsmwh'] = pd.to_numeric(df['mcprsmwh'], errors='coerce')
     df = df.ffill()
 
