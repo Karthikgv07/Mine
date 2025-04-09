@@ -117,8 +117,9 @@ from datetime import timedelta
 st.set_page_config(page_title="MCP Forecast with SARIMA", layout="wide")
 st.title(" Market Clearing Price Forecast using SARIMA")
 
-# --- File Upload ---
-uploaded_file = st.file_uploader("D:/education and study/data science course/Project/Power trading project/Data Sets/DAM_Market Snapshot.csv", type=["csv"])
+
+# File uploader
+uploaded_file = st.file_uploader("DAM_Market Snapshot.csv", type=["csv"])
 
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
