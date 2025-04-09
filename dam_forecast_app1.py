@@ -10,7 +10,7 @@ from scipy.stats import skew, kurtosis, ks_2samp
 import seaborn as sns
 
 # --- Load Dataset ---
-file_path = "D:/education and study/data science course/Project/Power trading project/Data Sets/DAM_Market Snapshot.csv"
+file_path = "DAM_Market Snapshot.csv"
 df = pd.read_csv(file_path)
 
 # --- Clean and Prepare Data ---
