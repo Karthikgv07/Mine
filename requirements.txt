@@ -20,3 +20,11 @@ prophet
 holidays
 statsmodels
 xgboost
+streamlit
+pandas
+numpy
+matplotlib
+seaborn
+scipy
+statsmodels
+pmdarima
