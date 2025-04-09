@@ -8,14 +8,12 @@ from statsmodels.tsa.stattools import adfuller, kpss
 from statsmodels.tsa.seasonal import seasonal_decompose
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from scipy.stats import skew, kurtosis, ks_2samp
-from pmdarima import auto_arima
 from datetime import timedelta
 import io
 
 # --- Page Config ---
 st.set_page_config(page_title="MCP Forecast with SARIMA", layout="wide")
 st.title(" Market Clearing Price (MCP) Forecast with SARIMA")
-
 
 # --- Upload File ---
 uploaded_file = st.file_uploader(" Upload DAM_Market Snapshot CSV", type=["csv"])
@@ -80,16 +78,12 @@ if uploaded_file:
 
     # --- Train SARIMA Model ---
     st.subheader(" SARIMA Model Training")
-    with st.spinner("Running Auto ARIMA..."):
-        auto_model = auto_arima(df['mcprsmwh'], seasonal=True, m=7, 
-                                trace=False, error_action='ignore', suppress_warnings=True)
-    order = auto_model.order
-    seasonal_order = auto_model.seasonal_order
-    st.success(f"Best Model: SARIMA{order}x{seasonal_order}")
+    with st.spinner("Training SARIMA model..."):
+        # Set your preferred (p,d,q)(P,D,Q,s) values here
+        model = SARIMAX(df['mcprsmwh'], order=(1,1,1), seasonal_order=(1,1,1,7),
+                        enforce_stationarity=False, enforce_invertibility=False)
+        model_fit = model.fit(disp=False)
 
-    model = SARIMAX(df['mcprsmwh'], order=order, seasonal_order=seasonal_order,
-                    enforce_stationarity=False, enforce_invertibility=False)
-    model_fit = model.fit(disp=False)
     st.success(" Model Training Complete")
 
     # --- Forecast ---
