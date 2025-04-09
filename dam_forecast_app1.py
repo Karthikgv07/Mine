@@ -16,29 +16,24 @@ uploaded_file = st.file_uploader("Upload DAM_Market Snapshot CSV", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
-    # --- Clean & Prepare ---
+   # Clean column names
     df.columns = df.columns.str.strip().str.lower().str.replace(r"[^a-zA-Z0-9_]", "", regex=True)
+
+    # Convert 'date' to datetime and drop bad rows
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
     df = df.dropna(subset=['date', 'mcprsmwh'])
 
-    # --- Clean & Prepare ---
-df.columns = df.columns.str.strip().str.lower().str.replace(r"[^a-zA-Z0-9_]", "", regex=True)
-df['date'] = pd.to_datetime(df['date'], errors='coerce')
-df = df.dropna(subset=['date', 'mcprsmwh'])
+    # Handle duplicate dates by averaging values
+    df = df.groupby('date', as_index=False)['mcprsmwh'].mean()
 
-# Handle duplicates: average MCP per day
-df = df.groupby('date', as_index=False)['mcprsmwh'].mean()
+    # Set index and reindex to daily frequency
+    df.set_index('date', inplace=True)
+    df = df.asfreq('D')
 
-# Reindex to daily frequency
-df.set_index('date', inplace=True)
-df = df.asfreq('D')
-
-df['mcprsmwh'] = pd.to_numeric(df['mcprsmwh'], errors='coerce')
-df = df.ffill()
-
+    # Convert to numeric and forward-fill missing values
     df['mcprsmwh'] = pd.to_numeric(df['mcprsmwh'], errors='coerce')
     df = df.ffill()
-
+    
     data = df[['mcprsmwh']]
 
     st.subheader("📊 Raw MCP Time Series")
