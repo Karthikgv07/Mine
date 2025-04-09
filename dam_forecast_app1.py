@@ -1,128 +1,86 @@
-# --- Import Libraries ---
+# app.py
 import streamlit as st
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from pmdarima import auto_arima
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-from statsmodels.tsa.stattools import adfuller, kpss
-from statsmodels.tsa.seasonal import seasonal_decompose
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from scipy.stats import skew, kurtosis, ks_2samp
 from datetime import timedelta
-import io
 
-# --- Page Config ---
+# --- Streamlit Config ---
 st.set_page_config(page_title="MCP Forecast with SARIMA", layout="wide")
-st.title(" Market Clearing Price (MCP) Forecast with SARIMA")
+st.title("⚡ Market Clearing Price Forecast using SARIMA")
 
-# --- Upload File ---
-uploaded_file = st.file_uploader(" Upload DAM_Market Snapshot CSV", type=["csv"])
+# --- File Upload ---
+uploaded_file = st.file_uploader("Upload your CSV file (e.g., DAM_Market Snapshot.csv)", type=["csv"])
 
-if uploaded_file:
-    # --- Read and Clean Data ---
-    df = pd.read_csv(uploaded_file)
+@st.cache_data
+def load_data(file):
+    df = pd.read_csv(file)
     df.columns = df.columns.str.strip().str.lower().str.replace(r"[^a-zA-Z0-9_]", "", regex=True)
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
-    df = df.dropna(subset=['date'])
-
-    numeric_cols = ["purchasebidmwh", "sellbidmwh", "mcvmwh", 
-                    "finalscheduledvolumemwh", "weightedmcprsmwh", "mcprsmwh"]
-    df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
-    df = df.dropna(subset=['mcprsmwh'])
-
-    df = df.groupby('date').mean()
+    df = df.dropna(subset=['date', 'mcprsmwh'])
+    df.set_index('date', inplace=True)
     df = df.asfreq('D')
-    df = df.ffill()
+    df['mcprsmwh'] = pd.to_numeric(df['mcprsmwh'], errors='coerce')
+    df = df.fillna(method='ffill')
+    return df[['mcprsmwh']]
 
-    st.subheader(" Summary Statistics")
-    st.dataframe(df.describe())
-    st.write(f"**Skewness:** {skew(df['mcprsmwh'].dropna()):.2f}")
-    st.write(f"**Kurtosis:** {kurtosis(df['mcprsmwh'].dropna()):.2f}")
+@st.cache_resource
+def train_sarima_model(series):
+    model_auto = auto_arima(series, seasonal=True, m=7, trace=False, error_action='ignore', suppress_warnings=True)
+    order = model_auto.order
+    seasonal_order = model_auto.seasonal_order
+    model = SARIMAX(series, order=order, seasonal_order=seasonal_order, enforce_stationarity=False, enforce_invertibility=False)
+    results = model.fit(disp=False)
+    return results, order, seasonal_order
 
-    # --- Decomposition ---
-    st.subheader(" Seasonal Decomposition")
-    fig1 = seasonal_decompose(df['mcprsmwh'], model='additive', period=365).plot()
-    st.pyplot(fig1)
+if uploaded_file is not None:
+    df = load_data(uploaded_file)
 
-    # --- ACF & PACF ---
-    st.subheader(" ACF & PACF Plots")
-    fig2, ax = plt.subplots(2, 1, figsize=(10, 6))
-    plot_acf(df['mcprsmwh'].dropna(), lags=50, ax=ax[0])
-    plot_pacf(df['mcprsmwh'].dropna(), lags=50, ax=ax[1])
-    plt.tight_layout()
-    st.pyplot(fig2)
+    st.subheader("📈 Historical MCP Data")
+    st.line_chart(df)
 
-    # --- Stationarity Tests ---
-    st.subheader(" Stationarity & Normality Tests")
+    st.subheader("🔧 Training SARIMA Model")
+    with st.spinner("Model training in progress..."):
+        model_fit, order, seasonal_order = train_sarima_model(df)
 
-    def adf_test(series):
-        result = adfuller(series.dropna())
-        return result[0], result[1]
-
-    def kpss_test(series):
-        result = kpss(series.dropna(), nlags="auto")
-        return result[0], result[1]
-
-    def ks_test(series):
-        stat, pval = ks_2samp(series.dropna(), 
-                              np.random.normal(series.mean(), series.std(), len(series)))
-        return stat, pval
-
-    adf_stat, adf_p = adf_test(df['mcprsmwh'])
-    kpss_stat, kpss_p = kpss_test(df['mcprsmwh'])
-    ks_stat, ks_p = ks_test(df['mcprsmwh'])
-
-    st.write(f"**ADF Test**: Statistic = {adf_stat:.4f}, p-value = {adf_p:.6f} → {'Stationary' if adf_p < 0.05 else 'Non-Stationary'}")
-    st.write(f"**KPSS Test**: Statistic = {kpss_stat:.4f}, p-value = {kpss_p:.6f} → {'Non-Stationary' if kpss_p < 0.05 else 'Stationary'}")
-    st.write(f"**KS Test**: Statistic = {ks_stat:.4f}, p-value = {ks_p:.6f} → {'Non-normal' if ks_p < 0.05 else 'Normal'}")
-
-    # --- Train SARIMA Model ---
-    st.subheader(" SARIMA Model Training")
-    with st.spinner("Training SARIMA model..."):
-        # Set your preferred (p,d,q)(P,D,Q,s) values here
-        model = SARIMAX(df['mcprsmwh'], order=(1,1,1), seasonal_order=(1,1,1,7),
-                        enforce_stationarity=False, enforce_invertibility=False)
-        model_fit = model.fit(disp=False)
-
-    st.success(" Model Training Complete")
+    st.success(f"Model trained! Order: {order}, Seasonal Order: {seasonal_order}")
 
     # --- Forecast ---
-    st.subheader(" MCP Forecast - Next 30 Days")
+    st.subheader("📊 Forecast for Next 30 Days")
     forecast_steps = 30
-    last_date = df.index[-1]
-    future_dates = [last_date + timedelta(days=i) for i in range(1, forecast_steps + 1)]
-
     forecast = model_fit.get_forecast(steps=forecast_steps)
     forecast_mean = forecast.predicted_mean
     conf_int = forecast.conf_int()
-
-    forecast_df = pd.DataFrame({
-        'Date': future_dates,
-        'Forecasted_MCP': forecast_mean.values,
-        'Lower_Bound': conf_int.iloc[:, 0].values,
-        'Upper_Bound': conf_int.iloc[:, 1].values
-    })
-
-    st.dataframe(forecast_df)
+    forecast_index = forecast_mean.index
 
     # --- Plot Forecast ---
-    st.subheader(" Forecast Visualization")
-    fig3, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(df['mcprsmwh'], label="Historical MCP", color='blue')
-    ax.plot(forecast_df['Date'], forecast_df['Forecasted_MCP'], label="Forecasted MCP", color='red')
-    ax.fill_between(forecast_df['Date'], forecast_df['Lower_Bound'], forecast_df['Upper_Bound'], 
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(df[-100:], label="Historical MCP", color='blue')
+    ax.plot(forecast_mean, label="Forecasted MCP", color='red')
+    ax.fill_between(forecast_index,
+                    conf_int.iloc[:, 0],
+                    conf_int.iloc[:, 1],
                     color='pink', alpha=0.3, label="Confidence Interval")
     ax.set_xlabel("Date")
     ax.set_ylabel("MCP (Rs/MWh)")
-    ax.set_title("Market Clearing Price Forecast (Next 30 Days)")
+    ax.set_title("SARIMA Forecast - Market Clearing Price")
     ax.legend()
-    ax.grid()
-    st.pyplot(fig3)
+    ax.grid(True)
+    st.pyplot(fig)
 
-    # --- Download Button ---
-    st.subheader(" Download Forecast CSV")
+    # --- Download Forecast ---
+    st.subheader("📥 Download Forecasted Data")
+    forecast_df = pd.DataFrame({
+        'Date': forecast_index,
+        'Forecasted_MCP': forecast_mean.values,
+        'Lower Bound': conf_int.iloc[:, 0].values,
+        'Upper Bound': conf_int.iloc[:, 1].values
+    })
+    st.dataframe(forecast_df)
+
     csv = forecast_df.to_csv(index=False).encode('utf-8')
-    st.download_button(" Download CSV", csv, file_name="MCP_Forecast.csv", mime="text/csv")
-
+    st.download_button("Download CSV", csv, "SARIMA_MCP_Forecast.csv", "text/csv")
 else:
-    st.info(" Please upload a CSV file to begin.")
+    st.info("📤 Please upload a CSV file to start.")
