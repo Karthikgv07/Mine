@@ -17,7 +17,7 @@ st.set_page_config(page_title="MCP Forecasting App", layout="wide")
 st.title("📈 Market Clearing Price Forecasting App")
 
 # --- File Upload ---
-uploaded_file = st.file_uploader("DAM Market Snapshot.CSV", type=["csv"])
+uploaded_file = st.file_uploader("DAM_Market Snapshot.csv", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
