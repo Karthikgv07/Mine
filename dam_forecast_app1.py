@@ -17,7 +17,7 @@ st.set_page_config(page_title="MCP Forecasting App", layout="wide")
 st.title("📈 Market Clearing Price Forecasting App")
 
 # --- File Upload ---
-uploaded_file = st.file_uploader("DAM_Market Snapshot.csv", type=["csv"])
+uploaded_file = st.file_uploader("DAM_Market Snapshot", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
@@ -34,6 +34,9 @@ if uploaded_file is not None:
     df = df.groupby('date').mean()
     df = df.asfreq('D')
     df = df.ffill()
+
+    # --- Set 'date' as the index for Time Series --- 
+    df.set_index('date', inplace=True)
 
     # --- Summary Statistics ---
     st.subheader("📊 Summary Statistics")
@@ -98,7 +101,7 @@ if uploaded_file is not None:
     # --- Single SARIMAX Fit ---
     model = SARIMAX(df['mcprsmwh'], order=order, seasonal_order=seasonal_order,
                     enforce_stationarity=False, enforce_invertibility=False)
-    model_fit = model.fit(disp=False)
+    model_fit = model.fit(disp=True)
 
     # --- Forecast Accuracy (on last 20%) ---
     test_len = int(0.2 * len(df))
