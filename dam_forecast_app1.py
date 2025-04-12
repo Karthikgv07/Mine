@@ -17,7 +17,7 @@ st.set_page_config(page_title="MCP Forecasting App", layout="wide")
 st.title("📈 Market Clearing Price Forecasting App")
 
 # --- File Upload ---
-uploaded_file = st.file_uploader("DAM_Market Snapshot.csv", type=["csv"])
+uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
 
@@ -84,7 +84,7 @@ if uploaded_file is not None:
     st.write(f"**KPSS Test (Stationary?):** {'Yes' if kpss_result[0] else 'No'} (p-value: {kpss_result[1][1]:.5f})")
     st.write(f"**KS Test (Normality?):** {'Yes' if ks_result[0] else 'No'} (p-value: {ks_result[1][1]:.5f})")
 
-    # --- Auto ARIMA ---
+    # --- Auto ARIMA --- 
     st.subheader("🤖 Auto ARIMA Model Selection")
     auto_model = auto_arima(
         df['mcprsmwh'],
@@ -98,7 +98,7 @@ if uploaded_file is not None:
     seasonal_order = auto_model.seasonal_order
     st.write(f"**Selected Order:** {order}, **Seasonal Order:** {seasonal_order}")
 
-    # --- Single SARIMAX Fit ---
+    # --- Single SARIMAX Fit (Reused Model) ---
     model = SARIMAX(df['mcprsmwh'], order=order, seasonal_order=seasonal_order,
                     enforce_stationarity=False, enforce_invertibility=False)
     model_fit = model.fit(disp=True)
@@ -120,7 +120,7 @@ if uploaded_file is not None:
     st.write(f"**MAE:** {mae:.2f}")
     st.write(f"**MAPE:** {mape:.2f}%")
 
-    # --- Final Forecast ---
+    # --- Final Forecast --- 
     future_steps = 30
     final_forecast = model_fit.get_forecast(steps=future_steps)
     forecast_mean = final_forecast.predicted_mean
@@ -138,7 +138,7 @@ if uploaded_file is not None:
     st.subheader("🔮 Forecast for Next 30 Days")
     st.dataframe(forecast_df)
 
-    # --- Plot ---
+    # --- Plot --- 
     st.subheader("📈 Forecast Plot")
     fig, ax = plt.subplots(figsize=(12, 6))
     plt.plot(df['mcprsmwh'], label='Historical MCP')
