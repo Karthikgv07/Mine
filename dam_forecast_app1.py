@@ -11,12 +11,7 @@ from scipy.stats import skew, kurtosis, ks_2samp
 from pmdarima import auto_arima
 from datetime import timedelta
 from sklearn.metrics import mean_squared_error, mean_absolute_error
-pip freeze > requirements.txt
 
-git add requirements.txt
-git add packages.txt
-git commit -m "Added dependencies to requirements.txt"
-git push origin main  # or the appropriate branch name
 
 
 st.set_page_config(page_title="MCP Forecasting App", layout="wide")
