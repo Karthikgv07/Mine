@@ -12,10 +12,7 @@ from pmdarima import auto_arima
 from datetime import timedelta
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-
-
 st.set_page_config(page_title="MCP Forecasting App", layout="wide")
-
 st.title("📈 Market Clearing Price Forecasting App")
 
 # --- File Upload ---
@@ -25,20 +22,28 @@ if uploaded_file is not None:
 
     # --- Data Cleaning ---
     df.columns = df.columns.str.strip().str.lower().str.replace(r"[^a-zA-Z0-9_]", "", regex=True)
+
+    if 'date' not in df.columns or 'mcprsmwh' not in df.columns:
+        st.error("Required columns ('date', 'mcprsmwh') are missing in uploaded CSV.")
+        st.stop()
+
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
     df = df.dropna(subset=['date'])
 
-    numeric_cols = ["purchasebidmwh", "sellbidmwh", "mcvmwh", 
+    numeric_cols = ["purchasebidmwh", "sellbidmwh", "mcvmwh",
                     "finalscheduledvolumemwh", "weightedmcprsmwh", "mcprsmwh"]
-    df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors='coerce')
+    for col in numeric_cols:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
     df = df.dropna(subset=['mcprsmwh'])
 
     df = df.groupby('date').mean()
     df = df.asfreq('D')
     df = df.ffill()
 
-    # --- Set 'date' as the index for Time Series --- 
-    df.set_index('date', inplace=True)
+    # --- Set 'date' as index ---
+    df.index.name = 'date'
 
     # --- Summary Statistics ---
     st.subheader("📊 Summary Statistics")
@@ -46,7 +51,7 @@ if uploaded_file is not None:
     st.write(f"**Skewness:** {skew(df['mcprsmwh'].dropna()):.2f}")
     st.write(f"**Kurtosis:** {kurtosis(df['mcprsmwh'].dropna()):.2f}")
 
-    # --- Decomposition (Optional) ---
+    # --- Decomposition ---
     if st.checkbox("Show Seasonal Decomposition"):
         st.subheader("📉 Time Series Decomposition")
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -73,7 +78,7 @@ if uploaded_file is not None:
         return result[1] > 0.05, result
 
     def ks_test(series):
-        statistic, p_value = ks_2samp(series.dropna(), 
+        statistic, p_value = ks_2samp(series.dropna(),
                                       np.random.normal(series.mean(), series.std(), len(series)))
         return p_value > 0.05, (statistic, p_value)
 
@@ -86,7 +91,7 @@ if uploaded_file is not None:
     st.write(f"**KPSS Test (Stationary?):** {'Yes' if kpss_result[0] else 'No'} (p-value: {kpss_result[1][1]:.5f})")
     st.write(f"**KS Test (Normality?):** {'Yes' if ks_result[0] else 'No'} (p-value: {ks_result[1][1]:.5f})")
 
-    # --- Auto ARIMA --- 
+    # --- Auto ARIMA ---
     st.subheader("🤖 Auto ARIMA Model Selection")
     auto_model = auto_arima(
         df['mcprsmwh'],
@@ -100,12 +105,12 @@ if uploaded_file is not None:
     seasonal_order = auto_model.seasonal_order
     st.write(f"**Selected Order:** {order}, **Seasonal Order:** {seasonal_order}")
 
-    # --- Single SARIMAX Fit (Reused Model) ---
+    # --- Fit SARIMAX ---
     model = SARIMAX(df['mcprsmwh'], order=order, seasonal_order=seasonal_order,
                     enforce_stationarity=False, enforce_invertibility=False)
-    model_fit = model.fit(disp=True)
+    model_fit = model.fit(disp=False)
 
-    # --- Forecast Accuracy (on last 20%) ---
+    # --- Forecast Accuracy on Last 20% ---
     test_len = int(0.2 * len(df))
     test = df.iloc[-test_len:]
 
@@ -122,7 +127,7 @@ if uploaded_file is not None:
     st.write(f"**MAE:** {mae:.2f}")
     st.write(f"**MAPE:** {mape:.2f}%")
 
-    # --- Final Forecast --- 
+    # --- Forecast Next 30 Days ---
     future_steps = 30
     final_forecast = model_fit.get_forecast(steps=future_steps)
     forecast_mean = final_forecast.predicted_mean
@@ -140,12 +145,12 @@ if uploaded_file is not None:
     st.subheader("🔮 Forecast for Next 30 Days")
     st.dataframe(forecast_df)
 
-    # --- Plot --- 
+    # --- Forecast Plot ---
     st.subheader("📈 Forecast Plot")
     fig, ax = plt.subplots(figsize=(12, 6))
     plt.plot(df['mcprsmwh'], label='Historical MCP')
     plt.plot(forecast_df['Date'], forecast_df['Forecasted_MCP'], color='red', label='Forecasted MCP')
-    plt.fill_between(forecast_df['Date'], forecast_df['Lower Bound'], forecast_df['Upper Bound'], 
+    plt.fill_between(forecast_df['Date'], forecast_df['Lower Bound'], forecast_df['Upper Bound'],
                      color='pink', alpha=0.3, label='Confidence Interval')
     plt.xlabel("Date")
     plt.ylabel("MCP (Rs/MWh)")
